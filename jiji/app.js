@@ -4,7 +4,7 @@ const { exec } = require('child_process');
 const config = {
     imap: {
         user: 'ezeuielalvares466@gmail.com',
-        password: 'Ezequiel*22*',
+        password: '0000',
         host: 'imap.gmail.com', // Cambia esto según tu servidor de correo
         port: 993,
         tls: true,
