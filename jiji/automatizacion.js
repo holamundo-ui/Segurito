@@ -1,5 +1,4 @@
 console.log("Iniciando script");
-const { execSync } = require('child_process');
 const puppeteer = require('puppeteer');
 
 (async () => {
@@ -15,14 +14,14 @@ const puppeteer = require('puppeteer');
         console.log('Navegador lanzado.');
 
         // Ejemplo de inicio de sesión
-        await page.goto('https://ad360.consejocaba.org.ar:8443/#/mgmt');  // Reemplaza con la URL correcta
+        await page.goto('https://ad360.consejocaba.org.ar:8443/#/reports');  // Reemplaza con la URL correcta
         await page.waitForSelector('#j_username', { timeout: 10000 });
         await page.click('#j_username');
         await page.type('#j_username', 'ggonzalez');
         
         await page.waitForSelector('#j_password', { timeout: 10000 });
         await page.click('#j_password');
-        await page.type('#j_password', '0000*');
+        await page.type('#j_password', 'Gaby2023*');
         await page.click('#loginButton');
 
         // Reemplazo de waitForTimeout con setTimeout en una promesa
@@ -32,7 +31,7 @@ const puppeteer = require('puppeteer');
 
         // Obtener las coordenadas del elemento usando getBoundingClientRect() desde Puppeteer
         const { x, y } = await page.evaluate(() => {
-            const element = document.querySelector('#reportLink_1021 > a');
+            const element = document.querySelector('#reportLink_3 > a');
             const rect = element.getBoundingClientRect();
             return {
                 x: rect.x,  // Coordenada X dentro del viewport
@@ -44,7 +43,7 @@ const puppeteer = require('puppeteer');
 
         // Verificar si el elemento está visible en el viewport
         const isElementVisibleInViewport = await page.evaluate(() => {
-            const element = document.querySelector('#reportLink_1021 > a');
+            const element = document.querySelector('#reportLink_3 > a');
             const rect = element.getBoundingClientRect();
             return (
                 rect.top >= 0 &&
@@ -59,7 +58,7 @@ const puppeteer = require('puppeteer');
         } else {
             console.log('El elemento no está visible en el viewport. Desplazándose...');
             await page.evaluate(() => {
-                document.querySelector('#reportLink_1021 > a').scrollIntoView();  // Desplazar al elemento
+                document.querySelector('#reportLink_3 > a').scrollIntoView();  // Desplazar al elemento
             });
             // Reemplazo de waitForTimeout con setTimeout en una promesa
             await new Promise(resolve => setTimeout(resolve, 1000));  // Espera de 1 segundo para que el desplazamiento tenga efecto
@@ -69,29 +68,16 @@ const puppeteer = require('puppeteer');
         console.log(`Haciendo clic en las coordenadas x:${x}, y:${y}`);
         await page.mouse.click(x, y);  // Hace clic en la posición especificada
 
-        // Busqueda de usuario
-		await page.waitForSelector('#searchString > div > input.textfield1.form-control', { timeout: 10000 });
-        await page.click('#searchString > div > input.textfield1.form-control');
-        await page.type('#searchString > div > input.textfield1.form-control', 'hdesouza');
-
-		await page.waitForSelector('#search', { timeout: 10000 });
-        await page.click('#search');
-
-        // Efectuar desbloqueo de usuario
-		await page.waitForSelector('#resultList > tbody > tr > td:nth-child(1) > div > label > span', { timeout: 10000 });
-        await page.click('#resultList > tbody > tr > td:nth-child(1) > div > label > span');
-		
-		await page.waitForSelector('#apply', { timeout: 10000 });
-        await page.click('#apply');        
+        // Hacer clic en el botón "Generar"
+        await page.waitForSelector('input.btn.btn-primary[value="Generar"]', { timeout: 10000 });
+        await page.click('input.btn.btn-primary[value="Generar"]');
+        console.log('Clic en el botón "Generar" realizado.');
 
         // Mantener el navegador abierto para depuración
-        console.log('Clic realizado. Navegador abierto para depuración.');
+        console.log('Navegador abierto para depuración.');
         await new Promise(resolve => process.on('SIGINT', resolve));
 
     } catch (error) {
         console.error('Error en la automatización:', error);
-        if (browser) {
-            await browser.close();
-        }
     }
 })();
