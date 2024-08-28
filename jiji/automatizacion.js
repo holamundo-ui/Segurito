@@ -21,7 +21,7 @@ const puppeteer = require('puppeteer');
         
         await page.waitForSelector('#j_password', { timeout: 10000 });
         await page.click('#j_password');
-        await page.type('#j_password', 'Gaby2023*');
+        await page.type('#j_password', '00000*');
         await page.click('#loginButton');
 
         // Reemplazo de waitForTimeout con setTimeout en una promesa
