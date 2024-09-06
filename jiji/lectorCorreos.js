@@ -1,131 +1,114 @@
 const puppeteer = require('puppeteer');
-const xlsx = require('xlsx');
-const path = require('path');
 
-async function iniciarSesionOutlook(page) {
+(async () => {
+    const browser = await puppeteer.launch({
+        headless: false,
+        slowMo: 50, // Ralentizar las acciones para poder ver el proceso
+        args: ['--start-maximized'], // Maximiza la ventana
+        executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' // Ruta a tu instalación de Chrome
+    });
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: 0, height: 0 }); // Forzar maximización de ventana
+
+    console.log('Navegador lanzado.');
+
+    // Navegar a la página de inicio de sesión de Outlook
+    await page.goto('https://outlook.office.com/');
     console.log('Iniciando sesión en Outlook...');
-    await page.goto('https://outlook.office.com');
 
-    // Completa con los selectores y pasos necesarios para iniciar sesión
-    await page.waitForSelector('input[type="email"]', { timeout: 10000 });
-    await page.type('input[type="email"]', 'ggonzalez@consejocaba.org.ar');
-    await page.click('input[type="submit"]');
-    await page.waitForSelector('input[type="password"]', { timeout: 10000 });
-    await page.type('input[type="password"]', '3*');
+    // Ingresar correo electrónico
+    await page.waitForSelector('input[type="email"]');
+    await page.type('input[type="email"]', 'usuario@dominio.org.ar');
     await page.click('input[type="submit"]');
 
-    // Completa MFA si es necesario...
-    // Aquí podrías esperar e interactuar con MFA si está habilitado
+    // Esperar a que cargue la página de contraseña
+    await page.waitForSelector('input[type="password"]');
+    await page.type('input[type="password"]', 'contraseña');
+    await page.click('input[type="submit"]');
+    console.log('Contraseña ingresada.');
 
-    console.log('Sesión iniciada en Outlook.');
-}
+    // Esperar para completar el MFA si es necesario
+    await new Promise(resolve => setTimeout(resolve, 10000)); // Ajusta este tiempo según sea necesario para completar el MFA
+    console.log('Esperando para completar MFA...');
 
-async function verificarCorreos() {
-    let browser;
+    // Detectar si el MFA está completo o si requiere más interacción
     try {
-        // Lanzar el navegador
-        browser = await puppeteer.launch({
-            headless: false,  // Para ver lo que está ocurriendo
-            executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'  // Ruta al navegador Chrome
-        });
+        await page.waitForSelector('input[type="submit"]', { timeout: 10000 });
+        await page.click('input[type="submit"]'); // Si se requiere otro "submit" después del MFA
+    } catch (e) {
+        console.log('No se requirió un submit adicional después del MFA.');
+    }
 
-        const page = await browser.newPage();
-        console.log('Navegador lanzado.');
+    console.log('Verificando correos en la bandeja de entrada...');
 
-        await iniciarSesionOutlook(page);
+    // Seleccionar la opción "No leído" en el filtro
+    try {
+        // Esperar que se despliegue el menú del filtro
+        await page.waitForSelector('button[aria-label="Filtrar"]');
+        await page.click('button[aria-label="Filtrar"]');
+        console.log('Menú de filtro desplegado.');
 
-        console.log('Verificando correos en la bandeja de entrada...');
+        // Esperar a que el menú de filtro esté visible
+        await page.waitForSelector('div[role="menu"] div[role="menuitemradio"][title="No leído"]', { timeout: 10000 });
+        await page.click('div[role="menu"] div[role="menuitemradio"][title="No leído"]');
 
-        // Hacer clic en el botón de rayas para filtrar correos no leídos
-        await page.waitForSelector('#mailListFilterMenu', { timeout: 10000 });
-        await page.click('#mailListFilterMenu');
+        // Esperar que carguen los correos no leídos
+        await page.waitForSelector('div[role="listbox"] div[role="option"]');
+        const correos = await page.$$('div[role="listbox"] div[role="option"]');
+        if (correos.length > 0) {
+            console.log(`Se encontraron ${correos.length} correos no leídos.`);
+            
+            // Seleccionar el correo más antiguo (último en la lista)
+            await correos[correos.length - 1].click();
+            console.log('Correo no leído más antiguo seleccionado.');
 
-        // Seleccionar la opción "No leído"
-        await page.waitForSelector('body > div:nth-child(17) > div > div > div:nth-child(3)', { timeout: 10000 });
-        await page.click('body > div:nth-child(17) > div > div > div:nth-child(3)');
+            // Verificar si se abre el panel de lectura
+            const panelAbierto = await page.$('div[role="document"]');
+            if (!panelAbierto) {
+                console.log('El panel de lectura no se abrió, intentando abrir manualmente...');
+                await correos[correos.length - 1].click(); // Reintentar la apertura del correo
+            } else {
+                console.log('Panel de lectura abierto correctamente.');
+            }
 
-        // Esperar y seleccionar el primer correo no leído
-        await page.waitForSelector('div[role="row"]', { timeout: 10000 });
-        const correos = await page.$$('div[role="row"][aria-label*="No leído"]');
+			// Obtener el asunto del correo usando XPath
+			const [asuntoElement] = await page.$x('//*[@id="ConversationReadingPaneContainer"]/div[1]/div/div/div/div/div/div/div/div/span[1]');
+			if (asuntoElement) {
+				const asunto = await page.evaluate(element => element.textContent, asuntoElement);
+				console.log('Asunto:', asunto);
+			} else {
+				console.log('No se pudo encontrar el asunto.');
+			}
 
-        if (correos.length === 0) {
-            console.log('No hay correos no leídos.');
-            return;
-        }
+            // Verificar si el asunto contiene "desbloqueo" o "cambio de contraseña"
+            let accion = null;
+            if (asunto.toLowerCase().includes('desbloqueo')) {
+                accion = 'desbloqueo';
+            } else if (asunto.toLowerCase().includes('cambio de contraseña')) {
+                accion = 'cambio de contraseña';
+            }
 
-        // Selecciona el correo no leído más antiguo (último en la lista)
-        const correo = correos[correos.length - 1];
-        await correo.click();
+            if (accion) {
+                console.log(`Acción detectada: ${accion}`);
 
-        console.log('Correo no leído seleccionado.');
+                // Extraer el cuerpo del correo (usuario)
+                const cuerpo = await page.$eval('div[data-test-id="message-body-content"]', el => el.innerText);
+                const usuario = cuerpo.trim().toLowerCase();
+                console.log(`Usuario detectado: ${usuario}`);
 
-        // Espera y obtiene el asunto del correo
-        await page.waitForSelector('#ItemReadingPaneContainer > div.ubHDG.Waj3A.bwgAh.pinIo > div > div > div > div > div > div > div > div > span.JdFsz', { timeout: 10000 });
-        const asunto = await page.$eval('#ItemReadingPaneContainer > div.ubHDG.Waj3A.bwgAh.pinIo > div > div > div > div > div > div > div > div > span.JdFsz', el => el.innerText.trim().toLowerCase());
-
-        // Espera y obtiene el cuerpo del correo
-        await page.waitForSelector('#UniqueMessageBody_24 > div > div > font > span > div', { timeout: 10000 });
-        const body = await page.$eval('#UniqueMessageBody_24 > div > div > font > span > div', el => el.innerText.trim());
-
-        // Limpiar el cuerpo del correo para obtener el nombre de usuario sin caracteres especiales
-        const usuario = body.replace(/[^a-zA-Z]/g, '').trim();
-
-        // Validar que el usuario sea no vacío
-        if (!usuario) {
-            console.error('Formato de correo no válido: nombre de usuario no encontrado.');
-            return;
-        }
-
-        // Definir la acción en función del asunto del correo
-        let accion;
-        if (asunto.includes('desbloqueo')) {
-            accion = 'desbloqueo';
-        } else if (asunto.includes('cambio de contraseña')) {
-            accion = 'cambio de contraseña';
+                // Aquí es donde puedes pasar estos datos a app.js o donde sea necesario
+            } else {
+                console.log('El asunto no contiene una acción válida.');
+            }
         } else {
-            console.error('Asunto del correo no válido:', asunto);
-            return;
+            console.log('No se encontraron correos no leídos.');
         }
-
-        console.log(`Procesando solicitud para el usuario: ${usuario}, acción: ${accion}`);
-
-        const usuarioValido = verificarUsuarioEnBaseDeDatos(usuario);
-        if (!usuarioValido) {
-            console.error('Usuario no encontrado en la base de datos:', usuario);
-            return;
-        }
-
-        // Marcar el correo como leído
-        console.log('Marcando el correo como leído...');
-        await page.waitForSelector('#ItemReadingPaneContainer > div.Q8TCC.yyYQP.customScrollBar > div > div.wide-content-host > div > div.uSg02 > div.DgV2h.l8Tnu > div.lT19A > div > div > div.ms-OverflowSet-overflowButton.overflowButton-175 > div > button > span > i > span > i', { timeout: 10000 });
-        await page.click('#ItemReadingPaneContainer > div.Q8TCC.yyYQP.customScrollBar > div > div.wide-content-host > div > div.uSg02 > div.DgV2h.l8Tnu > div.lT19A > div > div > div.ms-OverflowSet-overflowButton.overflowButton-175 > div > button > span > i > span > i');
-
-        await page.waitForSelector('#id__12188-menu > div > ul > li:nth-child(3) > button > div > span', { timeout: 10000 });
-        await page.click('#id__12188-menu > div > ul > li:nth-child(3) > button > div > span');
-
-        // Aquí enviarías la información a app.js
-        enviarInformacionAppJS(usuario, accion);
-
     } catch (error) {
         console.error('Error en la verificación de correos:', error);
-    } finally {
-        if (browser) {
-            await browser.close();
-        }
     }
-}
 
-function verificarUsuarioEnBaseDeDatos(usuario) {
-    const workbook = xlsx.readFile(path.join(__dirname, 'base_de_datos.xlsx'));
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const usuarios = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
-
-    return usuarios.some(row => row[0] === usuario);
-}
-
-function enviarInformacionAppJS(usuario, accion) {
-    // Aquí envías la información al archivo app.js, por ejemplo, usando un evento o una cola
-    console.log(`Enviando información a app.js: Usuario - ${usuario}, Acción - ${accion}`);
-}
-
-verificarCorreos();
+    // Mantener el navegador abierto para inspección manual
+    await new Promise(resolve => setTimeout(resolve, 60000)); // Mantener el navegador abierto por 1 minuto
+    await browser.close();
+})();
