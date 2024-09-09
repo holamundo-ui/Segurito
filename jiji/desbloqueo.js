@@ -7,7 +7,7 @@ const puppeteer = require('puppeteer');
         // Lanzar el navegador
         browser = await puppeteer.launch({
             headless: false,  // Para ver lo que está ocurriendo
-            executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'  // Ruta al navegador Chrome
+            executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'  // Ruta al navegador Chrome
         });
 
         const page = await browser.newPage();
@@ -22,16 +22,16 @@ const puppeteer = require('puppeteer');
 
         // Completar el inicio de sesión
         await page.waitForSelector('#j_username', { timeout: 10000 });
-        await page.type('#j_username', 'ggonzalez');
+        await page.type('#j_username', 'hdesouza');
         
         await page.waitForSelector('#j_password', { timeout: 10000 });
-        await page.type('#j_password', '010101*');
+        await page.type('#j_password', 'contraseña');
         await page.click('#loginButton');
         console.log('Inicio de sesión completado.');
 
         // Espera de 10 segundos
         console.log("Esperando 10 segundos...");
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        await new Promise(resolve => setTimeout(resolve, 10000));  // Reemplazo de page.waitForTimeout
         console.log("Espera de 10 segundos completada.");
 
         // Comprobar si el elemento existe antes de obtener coordenadas
@@ -42,7 +42,7 @@ const puppeteer = require('puppeteer');
         if (elementExists) {
             // Obtener las coordenadas del elemento usando getBoundingClientRect() desde Puppeteer
             const { x, y } = await page.evaluate(() => {
-                const element = document.querySelector('#reportLink_3 > a');
+                const element = document.querySelector('#reportLink_3 > a > span');
                 const rect = element.getBoundingClientRect();
                 return {
                     x: rect.x,  // Coordenada X dentro del viewport
@@ -115,6 +115,33 @@ const puppeteer = require('puppeteer');
         await page.waitForSelector('#searchCol_0 > td:nth-child(1) > input', { timeout: 10000 });
         await page.click('#searchCol_0 > td:nth-child(1) > input');
         console.log('Clic en el botón de búsqueda realizado.');
+
+        // Esperar a que los resultados se carguen
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Espera 3 segundos (ajusta según sea necesario)
+
+        // Verificar si el usuario está bloqueado o no
+        const userExists = await page.evaluate(() => {
+            // Selector para el usuario en los resultados
+            const userElement = document.querySelector('#resultRows_0 > tbody > tr > td:nth-child(3) > div');
+
+            return userElement !== null;  // Si existe el usuario, significa que está bloqueado
+        });
+
+        console.log('Verificando si el usuario está bloqueado...');
+        if (userExists) {
+            console.log('El usuario está bloqueado. Procediendo con el desbloqueo...');
+
+            // Aquí irían los clics del desbloqueo
+            await page.waitForSelector('#resultRows_0 > tbody > tr > td:nth-child(1) > div > ins', { timeout: 10000 });
+            await page.click('#resultRows_0 > tbody > tr > td:nth-child(1) > div > ins');
+            console.log('Usuario seleccionado.');
+            
+            await page.waitForSelector('#ember1540 > li:nth-child(4)', { timeout: 10000 });
+            await page.click('#ember1540 > li:nth-child(4)');
+            console.log('El usuario ha sido desbloqueado.');
+        } else {
+            console.log('El usuario no está bloqueado.');
+        }
 
         // Mantener el navegador abierto para depuración
         console.log('Navegador abierto para depuración.');
