@@ -1,6 +1,5 @@
 console.log('Iniciando Script...');
 
-const { execSync } = require('child_process');
 const puppeteer = require('puppeteer');
 
 (async () => {
@@ -9,7 +8,7 @@ const puppeteer = require('puppeteer');
         // Lanzar el navegador
         browser = await puppeteer.launch({
             headless: false,  // Para ver lo que está ocurriendo
-            executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'  // Ruta al navegador Chrome
+            executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
         });
 
         const page = await browser.newPage();
@@ -20,11 +19,11 @@ const puppeteer = require('puppeteer');
         
         await page.waitForSelector('#j_username', { timeout: 8000 });
         await page.click('#j_username');
-        await page.type('#j_username', 'ggonzalez');
+        await page.type('#j_username', 'usuario');
         
         await page.waitForSelector('#j_password', { timeout: 8000 });
         await page.click('#j_password');
-        await page.type('#j_password', '*');
+        await page.type('#j_password', 'contraseña');
         await page.click('#loginButton');
         console.log('Inicio de sesión exitoso.');
 
@@ -73,7 +72,7 @@ const puppeteer = require('puppeteer');
 		// Tildar contraseña aleatoria
 		await page.waitForSelector('#generatePasswordRow_40001 > td > div > ins', { timeout: 8000 });
         await page.click('#generatePasswordRow_40001 > td > div > ins');
-        console.log('Contraseña aleatoria...');
+        console.log('Contraseña aleatoria seleccionada...');
 
 		// Forzar cambio de contraseña en próximo inicio de sesión
 		await page.waitForSelector('#mustChangePwdRow_40002 > td:nth-child(2) > div.btn-group.bootstrap-select.combox > button', { timeout: 8000 });
@@ -83,10 +82,10 @@ const puppeteer = require('puppeteer');
         await page.click('#mustChangePwdRow_40002 > td:nth-child(2) > div.btn-group.bootstrap-select.combox.open > div > ul > li:nth-child(2) > a');
         console.log('Forzando cambio de contraseña en el próximo inicio de sesión...');
 
-		// Busqueda de usuario
+		// Búsqueda de usuario
 		await page.waitForSelector('#searchString > div > input.textfield1.form-control', { timeout: 8000 });
         await page.click('#searchString > div > input.textfield1.form-control');
-        await page.type('#searchString > div > input.textfield1.form-control', 'ggonzalez');
+        await page.type('#searchString > div > input.textfield1.form-control', 'usuario_solicitado');
 		
 		await page.waitForSelector('#search', { timeout: 8000 });
         await page.click('#search');
@@ -100,8 +99,22 @@ const puppeteer = require('puppeteer');
         await page.click('#apply');
         console.log('Cambio de contraseña exitoso.');
 
+        // Extraer la contraseña generada
+        const password = await page.evaluate(() => {
+            const passwordElement = document.querySelector('span.blacktxt1');
+            return passwordElement ? passwordElement.textContent.trim() : null;
+        });
+
+        if (password) {
+            console.log(`Contraseña temporal generada: ${password}`);
+            // Aquí puedes devolver la contraseña a app.js
+            return password;  // O enviar la contraseña a otro proceso
+        } else {
+            console.log('No se pudo encontrar la contraseña generada.');
+        }
+
         // Mantener el navegador abierto para depuración
-        console.log('Clic realizado. Navegador abierto para depuración.');
+        console.log('Navegador abierto para depuración.');
         await new Promise(resolve => process.on('SIGINT', resolve));
 
     } catch (error) {
