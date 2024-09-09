@@ -7,20 +7,19 @@ const puppeteer = require('puppeteer');
         // Lanzar el navegador
         browser = await puppeteer.launch({
             headless: false,  // Para ver lo que está ocurriendo
-            executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'  // Ruta al navegador Chrome
+            executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
         });
 
         const page = await browser.newPage();
         console.log('Navegador lanzado.');
 
-        // Ir a la página de inicio de sesión
+        // Inicio de sesión
         await page.goto('https://ad360.consejocaba.org.ar:8443/#/reports', { 
             waitUntil: 'networkidle2', // Esperar hasta que la red esté inactiva
             timeout: 60000 // Aumentar el tiempo de espera a 60 segundos
         });
         console.log('Página cargada.');
 
-        // Completar el inicio de sesión
         await page.waitForSelector('#j_username', { timeout: 10000 });
         await page.type('#j_username', 'usuario');
         
@@ -83,17 +82,16 @@ const puppeteer = require('puppeteer');
             console.error('El elemento #reportLink_3 > a no se encuentra en la página.');
         }
 
-        // Hacer clic en el botón "Generar"
+        // Generar reporte de usuarios bloqueados
         await page.waitForSelector('#ember275 > div.flat-theme > div:nth-child(7) > div > div.admp-body-pane.full-width > div > div.admp-align-center.admp-pt-20.admp-mt-5.admp-bdr-top-thin > input.btn.btn-primary', { timeout: 10000 });
         await page.click('#ember275 > div.flat-theme > div:nth-child(7) > div > div.admp-body-pane.full-width > div > div.admp-align-center.admp-pt-20.admp-mt-5.admp-bdr-top-thin > input.btn.btn-primary');
         console.log('Clic en el botón "Generar" realizado.');
 
-        // Hacer clic en el botón "#searchBtn_0"
+        // Búsqueda de usuario
         await page.waitForSelector('#searchBtn_0', { timeout: 10000 });
         await page.click('#searchBtn_0');
         console.log('Clic en el botón "#searchBtn_0" realizado.');
 
-        // Hacer clic en el campo de búsqueda
         await page.waitForSelector('#searchValue_1006', { timeout: 10000 });
         await page.click('#searchValue_1006');
         console.log('Campo de búsqueda clickeado.');
@@ -131,7 +129,7 @@ const puppeteer = require('puppeteer');
         if (userExists) {
             console.log('El usuario está bloqueado. Procediendo con el desbloqueo...');
 
-            // Aquí irían los clics del desbloqueo
+            // Efectuar desbloqueo
             await page.waitForSelector('#resultRows_0 > tbody > tr > td:nth-child(1) > div > ins', { timeout: 10000 });
             await page.click('#resultRows_0 > tbody > tr > td:nth-child(1) > div > ins');
             console.log('Usuario seleccionado.');
