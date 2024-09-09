@@ -22,7 +22,7 @@ const puppeteer = require('puppeteer');
 
         // Completar el inicio de sesión
         await page.waitForSelector('#j_username', { timeout: 10000 });
-        await page.type('#j_username', 'hdesouza');
+        await page.type('#j_username', 'usuario');
         
         await page.waitForSelector('#j_password', { timeout: 10000 });
         await page.type('#j_password', 'contraseña');
@@ -108,8 +108,8 @@ const puppeteer = require('puppeteer');
         // Esperar un breve momento para que el campo de entrada esté listo
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        await page.type('#searchValue_1006', 'ggonzalez');
-        console.log('Campo de búsqueda completado con "ggonzalez".');
+        await page.type('#searchValue_1006', 'usuario_solicitado');
+        console.log('Campo de búsqueda completado con "usuario_solicitado".');
 
         // Hacer clic en el botón para realizar la búsqueda
         await page.waitForSelector('#searchCol_0 > td:nth-child(1) > input', { timeout: 10000 });
