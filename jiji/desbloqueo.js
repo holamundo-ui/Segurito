@@ -7,7 +7,9 @@ const puppeteer = require('puppeteer');
         // Lanzar el navegador
         browser = await puppeteer.launch({
             headless: false,  // Para ver lo que está ocurriendo
-            executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+            executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+            slowMo: 50,  // Ralentizar cada acción en 50 ms
+			args: ['--start-maximized']
         });
 
         const page = await browser.newPage();
@@ -88,7 +90,7 @@ const puppeteer = require('puppeteer');
         console.log('Clic en el botón "Generar" realizado.');
 
         // Búsqueda de usuario
-        await page.waitForSelector('#searchBtn_0', { timeout: 10000 });
+        await page.waitForSelector('#searchBtn_0', { timeout: 15000 });
         await page.click('#searchBtn_0');
         console.log('Clic en el botón "#searchBtn_0" realizado.');
 
@@ -120,7 +122,7 @@ const puppeteer = require('puppeteer');
         // Verificar si el usuario está bloqueado o no
         const userExists = await page.evaluate(() => {
             // Selector para el usuario en los resultados
-            const userElement = document.querySelector('#resultRows_0 > tbody > tr > td:nth-child(3) > div');
+            const userElement = document.querySelector('#resultRows_0 > tbody > tr > td:nth-child(1)');
 
             return userElement !== null;  // Si existe el usuario, significa que está bloqueado
         });
@@ -134,9 +136,13 @@ const puppeteer = require('puppeteer');
             await page.click('#resultRows_0 > tbody > tr > td:nth-child(1) > div > ins');
             console.log('Usuario seleccionado.');
             
-            await page.waitForSelector('#ember1540 > li:nth-child(4)', { timeout: 10000 });
-            await page.click('#ember1540 > li:nth-child(4)');
+            await page.waitForSelector('a[data-original-title="Unlock"]', { timeout: 10000 });
+            await page.click('a[data-original-title="Unlock"]');
+			
+			await page.waitForSelector('#alertBox > div > div > div.modal-footer.bdr-none.admp-pt-0.admp-pb-20 > div > button.btn.btn-primary.btn-classic', { timeout: 10000 });
+            await page.click('#alertBox > div > div > div.modal-footer.bdr-none.admp-pt-0.admp-pb-20 > div > button.btn.btn-primary.btn-classic');
             console.log('El usuario ha sido desbloqueado.');
+
         } else {
             console.log('El usuario no está bloqueado.');
         }
