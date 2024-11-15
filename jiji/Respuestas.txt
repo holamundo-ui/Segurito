@@ -1,0 +1,13 @@
+Respuesta par Desbloqueo:
+Estimada/o, 
+Se procedió a rehabilitar el usuario sin cambio de contraseña.
+
+
+Respuesta para cambio de clave:
+Estimada/o,
+Se procedió al cambio de contraseña a continuación dejó la nueva clave temporal:
+Nueva clave temporal: Nuevaclave*010203
+
+Respuesta para usuario no registrado:
+Estimada/o,
+No encontramos registros que coincida con los datos enviados por favor contactese con Seguridad informática por los medios habilitado o verifique que el usuario esté bien escrito.
