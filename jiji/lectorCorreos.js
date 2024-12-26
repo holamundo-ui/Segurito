@@ -1,6 +1,5 @@
 const puppeteer = require('puppeteer');
 
-// Esta función inicia el proceso de lectura de correos
 async function iniciarLectorCorreos(callback) {
     const browser = await puppeteer.launch({
         headless: false,
@@ -22,7 +21,7 @@ async function iniciarLectorCorreos(callback) {
     await page.click('input[type="submit"]');
 
     await page.waitForSelector('input[type="password"]');
-    await page.type('input[type="password"]', 'Contraseña');
+    await page.type('input[type="password"]', 'Seginf*1710*');
     await page.click('input[type="submit"]');
     console.log('Contraseña ingresada.');
 
@@ -36,90 +35,107 @@ async function iniciarLectorCorreos(callback) {
         console.log('No se requirió un submit adicional después del MFA.');
     }
 
-    console.log('Verificando correos en la bandeja de entrada...');
+    async function verificarCorreos() {
+        console.log('Verificando correos en la bandeja de entrada...');
 
-    try {
-        await page.waitForSelector('button[aria-label="Filtrar"]');
-        await page.click('button[aria-label="Filtrar"]');
-        console.log('Menú de filtro desplegado.');
+        try {
+            await page.goto('https://outlook.office.com/mail/inbox');
+            await page.waitForSelector('button[aria-label="Filtrar"]');
+            await page.click('button[aria-label="Filtrar"]');
+            console.log('Menú de filtro desplegado.');
 
-        await page.waitForSelector('div[role="menu"] div[role="menuitemradio"][title="No leído"]', { timeout: 10000 });
-        await page.click('div[role="menu"] div[role="menuitemradio"][title="No leído"]');
+            await page.waitForSelector('div[role="menu"] div[role="menuitemradio"][title="No leído"]', { timeout: 10000 });
+            await page.click('div[role="menu"] div[role="menuitemradio"][title="No leído"]');
 
-        // Aumentamos el tiempo de espera para asegurarnos de que los correos carguen correctamente
-        await page.waitForSelector('div[role="listbox"] div[role="option"]', { timeout: 60000 });
+            await page.waitForSelector('div[role="listbox"] div[role="option"]', { timeout: 90000 });
 
-        // Verifica cuántos correos están presentes
-        const correos = await page.$$('div[role="listbox"] div[role="option"]');
-        console.log(`Número de correos no leídos encontrados: ${correos.length}`); // Depuración
+            const correos = await page.$$('div[role="listbox"] div[role="option"]');
+            console.log(`Número de correos no leídos encontrados: ${correos.length}`);
 
-        if (correos.length > 0) {
-            console.log(`Se encontraron ${correos.length} correos no leídos.`);
-            
-            // Realizamos un scroll para asegurarnos de que los correos estén completamente cargados y visibles
-            await page.evaluate(() => {
-                const scrollableContainer = document.querySelector('div[role="listbox"]');
-                scrollableContainer.scrollTop = scrollableContainer.scrollHeight;
-            });
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Espera después de hacer scroll
-
-            // Reobtenemos la lista de correos después del scroll
-            const nuevoCorreos = await page.$$('div[role="listbox"] div[role="option"]');
-            if (nuevoCorreos.length > 0) {
-                const correo = nuevoCorreos[nuevoCorreos.length - 1]; // Seleccionamos el último correo
-                await correo.scrollIntoViewIfNeeded(); // Desplazamos el correo a la vista
-
-                // Esperamos brevemente para asegurarnos de que el correo esté visible
-                await new Promise(resolve => setTimeout(resolve, 500));
-
+            for (const correo of correos) {
                 try {
-                    // Intentamos hacer clic en el correo
                     await correo.click();
-                    console.log('Correo no leído más antiguo seleccionado.');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    console.log('Correo no leído seleccionado.');
 
-                    // Esperamos que el correo se cargue completamente
                     await page.waitForSelector('#UniqueMessageBody_2', { timeout: 30000 });
-                    console.log('Panel de lectura abierto correctamente.');
-
-                    // Buscar al usuario dentro de #UniqueMessageBody_2
                     const cuerpoElement = await page.$('#UniqueMessageBody_2');
-                    if (cuerpoElement) {
+                    const asuntoElement = await page.$('#ConversationReadingPaneContainer > div.NTPm6.idxFD.WWy1F > div > div > div > div > div > div > div > div > span.JdFsz');
+                    const remitenteElement = await page.$('#focused > div.uSg02 > div.DgV2h.l8Tnu.lAKmW > div.x9jfA > div.bz1XJ > div > span > span > div > span');
+
+                    if (cuerpoElement && asuntoElement && remitenteElement) {
                         const cuerpo = await page.evaluate(element => element.innerText, cuerpoElement);
+                        const asunto = await page.evaluate(element => element.innerText, asuntoElement);
+                        const remitente = await page.evaluate(element => element.innerText, remitenteElement);
+
                         console.log('Cuerpo del correo:', cuerpo);
+                        console.log('Asunto del correo:', asunto);
+                        console.log('Remitente del correo:', remitente);
 
-                        // Dividir el cuerpo del correo en líneas y buscar el usuario
-                        const lineas = cuerpo.trim().split('\n').filter(line => line.trim() !== '');
                         let usuario = null;
+                        let accion = null;
 
+                        const lineas = cuerpo.trim().split('\n').filter(line => line.trim() !== '');
                         for (let linea of lineas) {
-                            linea = linea.trim();
-                            if (linea && !linea.includes('Este correo electrónico es externo') && !linea.includes('Obtener Outlook para Android')) {
-                                usuario = linea;
-                                break;
+                            if (!linea.includes('Este correo electrónico es externo') && !linea.includes('Obtener Outlook para Android')) {
+                                if (!usuario) {
+                                    usuario = linea.trim();
+                                }
                             }
                         }
 
-                        if (usuario) {
-                            console.log(`Usuario detectado: ${usuario}`);
-                            callback(usuario, 'desbloqueo'); // Llama al callback con usuario y acción
+                        if (asunto.toLowerCase().includes('desbloqueo')) {
+                            accion = 'desbloqueo';
+                        } else if (asunto.toLowerCase().includes('cambio de clave')) {
+                            accion = 'cambio de clave';
+                        }
+
+                        if (!accion) {
+                            accion = 'desbloqueo';
+                        }
+
+                        if (usuario && accion && remitente) {
+                            // Extraer solo el correo electrónico del remitente
+                            const correoRemitente = remitente.match(/<(.+)>/)[1]; // Extrae el correo entre <>
+
+                            // Convertimos ambos correos (el extraído y el registrado) a minúsculas y mayúsculas para la comparación
+                            const correoRemitenteLower = correoRemitente.toLowerCase();
+                            const correoRemitenteUpper = correoRemitente.toUpperCase();
+
+                            // Comparación con el correo de la base de datos (asegurándose de comparar en minúsculas y mayúsculas)
+                            const baseDeDatosCorreoLower = "gonzalezgabrielagustin@outlook.com".toLowerCase();
+                            const baseDeDatosCorreoUpper = "gonzalezgabrielagustin@outlook.com".toUpperCase();
+
+                            if (correoRemitenteLower === baseDeDatosCorreoLower || correoRemitenteUpper === baseDeDatosCorreoUpper) {
+                                console.log(`Usuario detectado: ${usuario}, Acción: ${accion}, Remitente: ${correoRemitente}`);
+                                callback(usuario, accion, correoRemitente);
+                            } else {
+                                console.log('El correo del remitente no coincide con el registrado.');
+                            }
                         } else {
-                            console.log('No se pudo encontrar el usuario en el cuerpo del correo.');
+                            console.log('No se pudo determinar el usuario, la acción o el remitente del correo.');
                         }
                     } else {
-                        console.log('No se pudo encontrar el cuerpo del correo con el selector dado.');
+                        console.log('No se pudo encontrar el cuerpo, asunto o remitente del correo con los selectores dados.');
                     }
+
+                    await page.keyboard.press('KeyQ'); // Marcar como leído
+                    console.log('Correo marcado como leído.');
                 } catch (error) {
-                    console.error('Error al hacer clic en el correo:', error);
+                    console.error('Error procesando un correo:', error);
                 }
-            } else {
-                console.log('No se encontraron correos disponibles después de hacer scroll.');
             }
-        } else {
-            console.log('No se encontraron correos no leídos.');
+
+            console.log('Finalizado el procesamiento de correos.');
+        } catch (error) {
+            console.error('Error verificando correos:', error);
         }
-    } catch (error) {
-        console.error('Error en la verificación de correos:', error);
+
+        console.log('Esperando 30 segundos antes de volver a verificar...');
+        setTimeout(verificarCorreos, 30000); // Esperar 30 segundos y verificar de nuevo
     }
+
+    verificarCorreos();
 
     console.log('Manteniendo el navegador abierto. Presiona Ctrl+C para cerrar.');
     await new Promise(resolve => {
@@ -132,4 +148,3 @@ async function iniciarLectorCorreos(callback) {
 }
 
 module.exports = { iniciarLectorCorreos };
-

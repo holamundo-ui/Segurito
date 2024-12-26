@@ -22,10 +22,10 @@ async function ejecutardesbloqueo(usuario) {
         console.log('Página cargada.');
 
         await page.waitForSelector('#j_username', { timeout: 10000 });
-        await page.type('#j_username', 'ggonzalez');  // Reemplazar con el usuario correcto
+        await page.type('#j_username', 'segurito');  // Reemplazar con el usuario correcto
         
         await page.waitForSelector('#j_password', { timeout: 10000 });
-        await page.type('#j_password', 'contraseña');  // Reemplazar con la contraseña correcta
+        await page.type('#j_password', 'Seginf*1710*');  // Reemplazar con la contraseña correcta
         await page.click('#loginButton');
         console.log('Inicio de sesión completado.');
 
