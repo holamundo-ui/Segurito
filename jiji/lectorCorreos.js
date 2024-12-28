@@ -21,7 +21,7 @@ async function iniciarLectorCorreos(callback) {
     await page.click('input[type="submit"]');
 
     await page.waitForSelector('input[type="password"]');
-    await page.type('input[type="password"]', 'Seginf*1710*');
+    await page.type('input[type="password"]', '');
     await page.click('input[type="submit"]');
     console.log('Contraseña ingresada.');
 
