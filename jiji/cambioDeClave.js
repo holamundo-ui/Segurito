@@ -21,7 +21,7 @@ async function cambioDeClave(usuario) {
 
     // Ingresar las credenciales
     await page.type('#j_username', 'segurito@consejocaba.org.ar');
-    await page.type('#j_password', 'Seginf*1710*');
+    await page.type('#j_password', '');
     await page.click('#loginButton');
     console.log('Inicio de sesión exitoso.');
 
