@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
   secure: false, // false para STARTTLS
   auth: {
     user: 'segurito@consejocaba.org.ar',
-    pass: 'Seginf*1710*'
+    pass: ''
   },
   tls: {
     ciphers: 'SSLv3',
