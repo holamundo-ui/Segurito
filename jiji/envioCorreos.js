@@ -2,52 +2,48 @@ const nodemailer = require('nodemailer');
 const xlsx = require('xlsx');
 const path = require('path');
 
-// Configuración del transportador de correos usando SMTP de Azure con tiempos de espera
 const transporter = nodemailer.createTransport({
   host: 'smtp.office365.com',
   port: 587,
-  secure: false, // false para STARTTLS
+  secure: false,
   auth: {
     user: 'segurito@consejocaba.org.ar',
-    pass: ''
+    pass: 'Seginf*1710*'
   },
   tls: {
     ciphers: 'SSLv3',
     rejectUnauthorized: false
   },
-  connectionTimeout: 10000, // Tiempo máximo para la conexión (10 segundos)
-  socketTimeout: 10000, // Tiempo máximo del socket (10 segundos)
-  greetingTimeout: 10000 // Tiempo de espera para el saludo inicial
+  connectionTimeout: 10000,
+  socketTimeout: 10000,
+  greetingTimeout: 10000
 });
 
-// Función general para enviar correos con manejo de errores y reintento
-async function envioCorreo(mailOptions, intentos = 3) {
+async function envioCorreo(mailOptions, intentos = 6) {
   try {
-    console.log(`Intentando enviar correo... (${4 - intentos}/3)`);
+    console.log(`Intentando enviar correo... (${7 - intentos}/6)`);
     await transporter.sendMail(mailOptions);
     console.log('Correo enviado con éxito:', mailOptions.subject);
   } catch (error) {
     console.error('Error al enviar el correo:', error.message);
     if (intentos > 1) {
-      console.log('Reintentando enviar correo en 5 segundos...');
-      setTimeout(() => envioCorreo(mailOptions, intentos - 1), 6000);
+      console.log('Reintentando enviar correo en 7 segundos...');
+      setTimeout(() => envioCorreo(mailOptions, intentos - 1), 7000);
     } else {
       console.error('No se pudo enviar el correo después de varios intentos.');
     }
   }
 }
 
-// Función para obtener el correo del usuario desde la base de datos
 function obtenerCorreoUsuario(usuario) {
   const workbook = xlsx.readFile(path.join(__dirname, 'base_de_datos.xlsx'));
   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
   const usuarios = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
-  // Buscar el usuario en la base de datos y devolver su correo
-  const usuarioData = usuarios.find(row => row[0] === usuario);
-  return usuarioData ? usuarioData[1] : null; // Suponiendo que el correo está en la segunda columna (B)
+  const usuarioBuscado = usuario.toLowerCase().trim();
+  const usuarioData = usuarios.find(row => row[0] && row[0].toString().toLowerCase().trim() === usuarioBuscado);
+  return usuarioData ? usuarioData[1].toString().toLowerCase().trim() : null;
 }
 
-// Función para enviar correo de éxito con desbloqueo
 async function enviarCorreoDesbloqueo(usuario, remitente) {
   const correoUsuario = obtenerCorreoUsuario(usuario);
   if (!correoUsuario) {
@@ -56,15 +52,14 @@ async function enviarCorreoDesbloqueo(usuario, remitente) {
   }
   const mailOptions = {
     from: 'segurito@consejocaba.org.ar',
-    to: correoUsuario, // Tomamos el correo del usuario de la base de datos
-    cc: 'ggonzalez@consejocaba.org.ar', // Agregamos copia
+    to: correoUsuario,
+    cc: 'ggonzalez@consejocaba.org.ar',
     subject: `Confirmación de desbloqueo para ${usuario}`,
     text: `Estimada/o,\n\nSe procedió a rehabilitar el usuario sin cambio de contraseña.\n\nSaludos cordiales.`
   };
-  envioCorreo(mailOptions); // Llama a la función de envío con reintento
+  envioCorreo(mailOptions);
 }
 
-// Función para enviar correo de éxito con cambio de contraseña
 async function enviarCorreoCambioClave(usuario, contrasena) {
   const correoUsuario = obtenerCorreoUsuario(usuario);
   if (!correoUsuario) {
@@ -73,32 +68,25 @@ async function enviarCorreoCambioClave(usuario, contrasena) {
   }
   const mailOptions = {
     from: 'segurito@consejocaba.org.ar',
-    to: correoUsuario, // Tomamos el correo del usuario de la base de datos
-    cc: 'ggonzalez@consejocaba.org.ar', // Agregamos copia
+    to: correoUsuario,
+    cc: 'ggonzalez@consejocaba.org.ar',
     subject: `Cambio de contraseña para ${usuario}`,
     text: `Estimada/o,\n\nSe procedió al cambio de contraseña. A continuación, dejo la nueva clave temporal:\nNueva clave temporal: ${contrasena}\n\nSaludos cordiales.`
   };
-  envioCorreo(mailOptions); // Llama a la función de envío con reintento
+  envioCorreo(mailOptions);
 }
 
-// Función para enviar correo de error (usuario no registrado)
 async function enviarCorreoUsuarioNoRegistrado(usuario, remitente) {
-  const correoUsuario = obtenerCorreoUsuario(usuario);
-  if (!correoUsuario) {
-    console.error(`Correo no encontrado para el usuario ${usuario}`);
-    return;
-  }
   const mailOptions = {
     from: 'segurito@consejocaba.org.ar',
-    to: correoUsuario, // Tomamos el correo del usuario de la base de datos
-    cc: 'ggonzalez@consejocaba.org.ar', // Agregamos copia
-    subject: `Usuario no registrado: ${usuario}`,
-    text: `Estimada/o,\n\nNo encontramos registros que coincidan con los datos enviados. Por favor, contáctese con Seguridad Informática o verifique que el usuario esté bien escrito.\n\nSaludos cordiales.`
+    to: remitente,
+    cc: 'ggonzalez@consejocaba.org.ar',
+    subject: `Usuario no encontrado en la base de datos: ${usuario}`,
+    text: `Estimado/a,\n\nNo encontramos el usuario "${usuario}" en nuestra base de datos.\n\nPor favor, contáctese con Seguridad Informática o verifique que el usuario esté bien escrito.\n\nSaludos cordiales.`
   };
-  envioCorreo(mailOptions); // Llama a la función de envío con reintento
+  envioCorreo(mailOptions);
 }
 
-// Función para enviar correo cuando el usuario no está bloqueado
 async function enviarCorreoUsuarioNoBloqueado(usuario, remitente) {
   const correoUsuario = obtenerCorreoUsuario(usuario);
   if (!correoUsuario) {
@@ -107,18 +95,46 @@ async function enviarCorreoUsuarioNoBloqueado(usuario, remitente) {
   }
   const mailOptions = {
     from: 'segurito@consejocaba.org.ar',
-    to: correoUsuario, // Tomamos el correo del usuario de la base de datos
-    cc: 'ggonzalez@consejocaba.org.ar', // Agregamos copia
+    to: correoUsuario,
+    cc: 'ggonzalez@consejocaba.org.ar',
     subject: `Usuario no bloqueado: ${usuario}`,
     text: `Estimado/a,\n\nSu usuario no se encuentra bloqueado.\n\nSaludos cordiales.`
   };
-  envioCorreo(mailOptions); // Llama a la función de envío con reintento
+  envioCorreo(mailOptions);
 }
 
-// Exportar las funciones
+async function enviarCorreoCorreoNoCoincide(usuario, remitente) {
+  const mailOptions = {
+    from: 'segurito@consejocaba.org.ar',
+    to: remitente,
+    cc: 'ggonzalez@consejocaba.org.ar',
+    subject: `El usuario ${usuario} no está informado con este correo`,
+    text: `Estimado/a,\n\nEl usuario ${usuario} no está informado con este correo.\n\nSaludos cordiales.`
+  };
+  envioCorreo(mailOptions);
+}
+
+async function enviarCorreoUsuarioNoCoincide(usuario, remitente) {
+  const correoUsuario = obtenerCorreoUsuario(usuario);
+  if (!correoUsuario) {
+    console.error(`Correo no encontrado para el usuario ${usuario}`);
+    return;
+  }
+  const mailOptions = {
+    from: 'segurito@consejocaba.org.ar',
+    to: correoUsuario,
+    cc: 'ggonzalez@consejocaba.org.ar',
+    subject: `El correo no está informado con el usuario ${usuario}`,
+    text: `Estimado/a,\n\nEl correo no está informado con el usuario ${usuario}.\n\nSaludos cordiales.`
+  };
+  envioCorreo(mailOptions);
+}
+
 module.exports = {
   enviarCorreoDesbloqueo,
   enviarCorreoCambioClave,
   enviarCorreoUsuarioNoRegistrado,
-  enviarCorreoUsuarioNoBloqueado
+  enviarCorreoUsuarioNoBloqueado,
+  enviarCorreoCorreoNoCoincide,
+  enviarCorreoUsuarioNoCoincide
 };
