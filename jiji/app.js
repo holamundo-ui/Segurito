@@ -1,10 +1,12 @@
 const async = require('async');
 const { ejecutardesbloqueo } = require('./desbloqueo');
 const { cambioDeClave } = require('./cambioDeClave');
-const { enviarCorreoDesbloqueo, enviarCorreoCambioClave, enviarCorreoUsuarioNoRegistrado, enviarCorreoUsuarioNoBloqueado } = require('./envioCorreos');
+const { enviarCorreoDesbloqueo, enviarCorreoCambioClave, enviarCorreoUsuarioNoRegistrado, enviarCorreoCorreoNoCoincide, enviarCorreoUsuarioNoBloqueado } = require('./envioCorreos');
 const { iniciarLectorCorreos } = require('./lectorCorreos');
 const xlsx = require('xlsx');
 const path = require('path');
+
+const rutaBaseDeDatos = 'C:\\Users\\ggonzalez\\Desktop\\jiji\\base_de_datos.xlsx';
 
 const queue = async.queue(async (task, callback) => {
   try {
@@ -19,16 +21,30 @@ const queue = async.queue(async (task, callback) => {
 async function procesarSolicitud(usuario, accion, remitente) {
   let resultadoProceso = { exito: false, mensaje: '' };
   try {
+    const verificacionUsuario = verificarUsuarioEnBaseDeDatos(usuario, remitente);
+    
+    if (!verificacionUsuario.usuarioValido) {
+      if (verificacionUsuario.tipo === 'no_existe') {
+        console.log('Usuario no existe en la base de datos. Enviando correo de usuario no registrado.');
+        await enviarCorreoUsuarioNoRegistrado(usuario, remitente);
+      } else if (verificacionUsuario.tipo === 'correo_no_coincide') {
+        console.log('El correo no coincide con el registrado. Enviando correo de correo no coincide.');
+        await enviarCorreoCorreoNoCoincide(usuario, remitente);
+      }
+      return;
+    }
+
     if (accion === 'desbloqueo') {
       resultadoProceso = await procesarDesbloqueo(usuario);
     } else if (accion === 'cambio de contraseña') {
       resultadoProceso = await procesarCambioDeClave(usuario);
     }
+    
     if (resultadoProceso.exito) {
       if (accion === 'desbloqueo') {
         await enviarCorreoDesbloqueo(usuario, remitente);
       } else if (accion === 'cambio de contraseña') {
-        await enviarCorreoCambioClave(usuario, resultadoProceso.contrasena);
+        await enviarCorreoCambioClave(usuario, resultadoProceso.contrasena, remitente); // Asegúrate de pasar el remitente aquí
       }
     } else {
       await enviarCorreoUsuarioNoBloqueado(usuario, remitente);
@@ -40,19 +56,40 @@ async function procesarSolicitud(usuario, accion, remitente) {
 }
 
 function verificarUsuarioEnBaseDeDatos(usuario, remitente) {
-  const workbook = xlsx.readFile(path.join(__dirname, 'base_de_datos.xlsx'));
-  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-  const usuarios = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
-  const usuarioEncontrado = usuarios.find(row => row[0].toLowerCase() === usuario.toLowerCase());
-  if (!usuarioEncontrado) {
-    console.log(`Usuario ${usuario} no encontrado en la base de datos`);
-    return { usuarioValido: false, mensaje: 'Usuario no encontrado' };
+  try {
+    const workbook = xlsx.readFile(rutaBaseDeDatos);
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const usuarios = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+    console.log('Buscando usuario:', usuario);
+    console.log('Remitente:', remitente);
+    
+    // Normalizar usuario y remitente a minúsculas
+    const usuarioBuscado = usuario.toString().toLowerCase().trim();
+    const remitenteNormalizado = remitente.toString().toLowerCase().trim();
+    
+    // Primero verificar si el usuario existe
+    const usuarioEncontrado = usuarios.find(row => {
+      if (!row[0]) return false;
+      return row[0].toString().toLowerCase().trim() === usuarioBuscado;
+    });
+
+    if (!usuarioEncontrado) {
+      console.log(`Usuario ${usuario} no encontrado en la base de datos`);
+      return { usuarioValido: false, mensaje: 'Usuario no encontrado', tipo: 'no_existe' };
+    }
+
+    // Si el usuario existe, verificar si el correo coincide
+    const correoBaseDatos = usuarioEncontrado[1].toString().toLowerCase().trim();
+    if (correoBaseDatos !== remitenteNormalizado) {
+      console.log(`El correo ${remitente} no coincide con el registrado para el usuario ${usuario}`);
+      return { usuarioValido: false, mensaje: 'El correo del remitente no coincide con el registrado', tipo: 'correo_no_coincide' };
+    }
+
+    return { usuarioValido: true, mensaje: 'Usuario válido y correo coincidente' };
+  } catch (error) {
+    console.error('Error al verificar usuario en base de datos:', error);
+    return { usuarioValido: false, mensaje: 'Error al verificar usuario' };
   }
-  if (usuarioEncontrado[1].toLowerCase() !== remitente.toLowerCase()) {
-    console.log(`El correo ${remitente} no coincide con el registrado para el usuario ${usuario}`);
-    return { usuarioValido: false, mensaje: 'El correo del remitente no coincide con el registrado' };
-  }
-  return { usuarioValido: true, mensaje: 'Usuario válido y correo coincidente' };
 }
 
 async function procesarDesbloqueo(usuario) {
@@ -75,11 +112,17 @@ async function verificarSiUsuarioEstaBloqueado(usuario) {
 iniciarLectorCorreos(async (usuario, accion, remitente) => {
   console.log(`Recibido correo para usuario: ${usuario}, acción: ${accion}, remitente: ${remitente}`);
   const datosUsuario = verificarUsuarioEnBaseDeDatos(usuario, remitente);
+  
   if (!datosUsuario.usuarioValido) {
-    console.log('Usuario no válido o correo no coincide. Enviando correo de usuario no registrado.');
-    await enviarCorreoUsuarioNoRegistrado(usuario, remitente);
+    console.log('Usuario no válido o correo no coincide. Enviando correo correspondiente.');
+    if (datosUsuario.tipo === 'no_existe') {
+      await enviarCorreoUsuarioNoRegistrado(usuario, remitente);
+    } else if (datosUsuario.tipo === 'correo_no_coincide') {
+      await enviarCorreoCorreoNoCoincide(usuario, remitente);
+    }
     return;
   }
+  
   if (accion === 'cambio de clave') {
     const estaBloqueado = await verificarSiUsuarioEstaBloqueado(usuario);
     if (estaBloqueado) {
