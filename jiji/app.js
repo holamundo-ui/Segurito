@@ -36,18 +36,17 @@ async function procesarSolicitud(usuario, accion, remitente) {
 
     if (accion === 'desbloqueo') {
       resultadoProceso = await procesarDesbloqueo(usuario);
-    } else if (accion === 'cambio de contraseña') {
-      resultadoProceso = await procesarCambioDeClave(usuario);
-    }
-    
-    if (resultadoProceso.exito) {
-      if (accion === 'desbloqueo') {
+      if (resultadoProceso.exito) {
         await enviarCorreoDesbloqueo(usuario, remitente);
-      } else if (accion === 'cambio de contraseña') {
-        await enviarCorreoCambioClave(usuario, resultadoProceso.contrasena, remitente); // Asegúrate de pasar el remitente aquí
+      } else {
+        await enviarCorreoUsuarioNoBloqueado(usuario, remitente);
       }
-    } else {
-      await enviarCorreoUsuarioNoBloqueado(usuario, remitente);
+    } else if (accion === 'cambio de contraseña') {
+      await ejecutardesbloqueo(usuario, 'desbloqueo');
+      resultadoProceso = await procesarCambioDeClave(usuario);
+      if (resultadoProceso.exito) {
+        await enviarCorreoCambioClave(usuario, resultadoProceso.contrasena, remitente);
+      }
     }
   } catch (error) {
     console.error('Error procesando la solicitud:', error);
@@ -63,11 +62,9 @@ function verificarUsuarioEnBaseDeDatos(usuario, remitente) {
     console.log('Buscando usuario:', usuario);
     console.log('Remitente:', remitente);
     
-    // Normalizar usuario y remitente a minúsculas
     const usuarioBuscado = usuario.toString().toLowerCase().trim();
     const remitenteNormalizado = remitente.toString().toLowerCase().trim();
     
-    // Primero verificar si el usuario existe
     const usuarioEncontrado = usuarios.find(row => {
       if (!row[0]) return false;
       return row[0].toString().toLowerCase().trim() === usuarioBuscado;
@@ -78,7 +75,6 @@ function verificarUsuarioEnBaseDeDatos(usuario, remitente) {
       return { usuarioValido: false, mensaje: 'Usuario no encontrado', tipo: 'no_existe' };
     }
 
-    // Si el usuario existe, verificar si el correo coincide
     const correoBaseDatos = usuarioEncontrado[1].toString().toLowerCase().trim();
     if (correoBaseDatos !== remitenteNormalizado) {
       console.log(`El correo ${remitente} no coincide con el registrado para el usuario ${usuario}`);
@@ -123,18 +119,7 @@ iniciarLectorCorreos(async (usuario, accion, remitente) => {
     return;
   }
   
-  if (accion === 'cambio de clave') {
-    const estaBloqueado = await verificarSiUsuarioEstaBloqueado(usuario);
-    if (estaBloqueado) {
-      console.log(`Usuario ${usuario} está bloqueado, ejecutando desbloqueo.`);
-      queue.push({ usuario, accion: 'desbloqueo', remitente });
-    } else {
-      console.log(`Usuario ${usuario} no está bloqueado, ejecutando cambio de clave.`);
-      queue.push({ usuario, accion: 'cambio de contraseña', remitente });
-    }
-  } else {
-    queue.push({ usuario, accion, remitente });
-  }
+  queue.push({ usuario, accion: accion === 'cambio de clave' ? 'cambio de contraseña' : accion, remitente });
 });
 
 module.exports = { procesarCambioDeClave, procesarDesbloqueo };
